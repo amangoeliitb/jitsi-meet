@@ -16,18 +16,13 @@
 
 package org.jitsi.meet.sdk;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.fragment.app.FragmentActivity;
 
 import com.facebook.react.modules.core.PermissionListener;
@@ -42,28 +37,28 @@ import java.util.Map;
  * lifting and wires the remaining Activity lifecycle methods so it works out of the box.
  */
 public class JitsiMeetActivity extends FragmentActivity
-        implements JitsiMeetActivityInterface, JitsiMeetViewListener {
+    implements JitsiMeetActivityInterface, JitsiMeetViewListener, ExternalCommunicationInterface {
 
     protected static final String TAG = JitsiMeetActivity.class.getSimpleName();
 
     private static final String ACTION_JITSI_MEET_CONFERENCE = "org.jitsi.meet.CONFERENCE";
     private static final String JITSI_MEET_CONFERENCE_OPTIONS = "JitsiMeetConferenceOptions";
-
-//    protected static JitsiMeetView currentJitsiView = null;
+    public static boolean isSessionActive = false;
+    //    protected static JitsiMeetView currentJitsiView = null;
     protected static Context currentCallingContext;
+    protected static FragmentActivity thisActivity;
     private static int LAUNCH_FLAG = Intent.FLAG_ACTIVITY_NEW_TASK;
+    private static int LAUNCH_FLAG_APP = Intent.FLAG_ACTIVITY_NEW_TASK;
+    private static ExternalCommunicationInterface externalCommunicationInterface;
 
     public static int getLaunchFlagApp() {
         return LAUNCH_FLAG_APP;
     }
+//    public static int counter=0;
 
     public static void setLaunchFlagApp(int launchFlagApp) {
         LAUNCH_FLAG_APP = launchFlagApp;
     }
-
-    private static int LAUNCH_FLAG_APP = Intent.FLAG_ACTIVITY_NEW_TASK;
-    public static boolean isSessionActive=false;
-//    public static int counter=0;
 
     public static boolean isIsSessionActive() {
         return isSessionActive;
@@ -72,7 +67,6 @@ public class JitsiMeetActivity extends FragmentActivity
     public static void setIsSessionActive(boolean isSessionActive) {
         JitsiMeetActivity.isSessionActive = isSessionActive;
     }
-    protected static FragmentActivity thisActivity;
 
     public static FragmentActivity getThisActivity() {
         return thisActivity;
@@ -91,11 +85,13 @@ public class JitsiMeetActivity extends FragmentActivity
     }
 
     public static void launch(Context context, JitsiMeetConferenceOptions options) {
-        if(!isIsSessionActive()){
+        if (!isIsSessionActive()) {
             return;
         }
         Intent intent = new Intent(context, JitsiMeetActivity.class);
         intent.setAction(ACTION_JITSI_MEET_CONFERENCE);
+        if (LAUNCH_FLAG != -1)
+            intent.setFlags(LAUNCH_FLAG);
         intent.putExtra(JITSI_MEET_CONFERENCE_OPTIONS, options);
         setCurrentCallingContext(context);
         getCurrentCallingContext().startActivity(intent);
@@ -108,17 +104,26 @@ public class JitsiMeetActivity extends FragmentActivity
         launch(getCurrentCallingContext(), options);
     }
 
-    public static void launchCurrentJitsiCall(Context context){
+    public static void launchCurrentJitsiCall(Context context) {
         //@cobrowsing log launchCurrentJitsiCall
-        JitsiMeetLogger.d(TAG+" cobrowsing-launchCurrentJitsiCall: context "+context);
-        try{
-            Intent intent = new Intent(context,JitsiMeetActivity.class);
+        JitsiMeetLogger.d(TAG + " cobrowsing-launchCurrentJitsiCall: context " + context);
+        try {
+            Intent intent = new Intent(context, JitsiMeetActivity.class);
+            if (LAUNCH_FLAG != -1)
+                intent.setFlags(LAUNCH_FLAG);
             context.startActivity(intent);
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    public static Context getCurrentCallingContext() {
+        return currentCallingContext;
+    }
+
+    public static void setCurrentCallingContext(Context currentCallingContext) {
+        JitsiMeetActivity.currentCallingContext = currentCallingContext;
+    }
 
     @Override
     protected void onStart() {
@@ -126,7 +131,6 @@ public class JitsiMeetActivity extends FragmentActivity
         Log.d(TAG, "onStart() called");
 //        isHidden = false;
     }
-
 
     @Override
     protected void onStop() {
@@ -139,7 +143,7 @@ public class JitsiMeetActivity extends FragmentActivity
     protected void onPause() {
         super.onPause();
         Log.d(TAG, "onPause() called");
-        Log.d(TAG, "onResume: Current Jitsi View "+getJitsiView());
+        Log.d(TAG, "onResume: Current Jitsi View " + getJitsiView());
 //        currentJitsiView = getJitsiView();
         thisActivity = this;
 //        isHidden = true;
@@ -156,26 +160,19 @@ public class JitsiMeetActivity extends FragmentActivity
     protected void onResume() {
         super.onResume();
         Log.d(TAG, "onResume() called");
-        Log.d(TAG, "onResume: Current Jitsi View "+getJitsiView());
-        if(!isIsSessionActive()){
+        Log.d(TAG, "onResume: Current Jitsi View " + getJitsiView());
+        if (!isIsSessionActive()) {
             this.finish();
         }
 //        currentJitsiView = getJitsiView();
         thisActivity = this;
+        externalCommunicationInterface = this;
 //        isHidden = false;
     }
 
     @Override
     protected void onPostResume() {
         super.onPostResume();
-    }
-
-    public static Context getCurrentCallingContext() {
-        return currentCallingContext;
-    }
-
-    public static void setCurrentCallingContext(Context currentCallingContext) {
-        JitsiMeetActivity.currentCallingContext = currentCallingContext;
     }
 
     @Override
@@ -202,10 +199,11 @@ public class JitsiMeetActivity extends FragmentActivity
         // be operational so the external API won't be able to notify the native side that the
         // conference terminated. Thus, try our best to clean up.
         //@cobrowsing log onDestroy
-        JitsiMeetLogger.d(TAG+" cobrowsing-onDestroy: checkForWhoFirst");
+        JitsiMeetLogger.d(TAG + " cobrowsing-onDestroy: checkForWhoFirst");
         thisActivity = null;
         setCurrentCallingContext(null);
 //        isHidden = true;
+        externalCommunicationInterface = null;
         leave();
         if (AudioModeModule.useConnectionService()) {
             ConnectionService.abortConnections();
@@ -218,15 +216,28 @@ public class JitsiMeetActivity extends FragmentActivity
     @Override
     public void finish() {
         //@cobrowsing log finish
-        JitsiMeetLogger.d(TAG+" cobrowsing-finish: ");
+        JitsiMeetLogger.d(TAG + " cobrowsing-finish: ");
         leave();
         if (AudioModeModule.useConnectionService()) {
             //@cobrowsing log finish
-            JitsiMeetLogger.d(TAG+" cobrowsing-finish: useConnectionService");
+            JitsiMeetLogger.d(TAG + " cobrowsing-finish: useConnectionService");
             ConnectionService.abortConnections();
         }
         JitsiMeetOngoingConferenceService.abort(this);
         super.finish();
+    }
+
+    @Override
+    public void finishAndRemoveTask() {
+        JitsiMeetLogger.d(TAG + " cobrowsing-finishAndRemoveTask: ");
+        leave();
+        if (AudioModeModule.useConnectionService()) {
+            //@cobrowsing log finish
+            JitsiMeetLogger.d(TAG + " cobrowsing-finishAndRemoveTask: useConnectionService");
+            ConnectionService.abortConnections();
+        }
+        JitsiMeetOngoingConferenceService.abort(this);
+        super.finishAndRemoveTask();
     }
 
     // Helper methods
@@ -241,8 +252,8 @@ public class JitsiMeetActivity extends FragmentActivity
     public void join(@Nullable String url) {
         JitsiMeetConferenceOptions options
             = new JitsiMeetConferenceOptions.Builder()
-                .setRoom(url)
-                .build();
+            .setRoom(url)
+            .build();
         join(options);
     }
 
@@ -254,7 +265,8 @@ public class JitsiMeetActivity extends FragmentActivity
         getJitsiView().leave();
     }
 
-    private @Nullable JitsiMeetConferenceOptions getConferenceOptions(Intent intent) {
+    private @Nullable
+    JitsiMeetConferenceOptions getConferenceOptions(Intent intent) {
         String action = intent.getAction();
 
         if (Intent.ACTION_VIEW.equals(action)) {
@@ -273,7 +285,7 @@ public class JitsiMeetActivity extends FragmentActivity
      * Helper function called during activity initialization. If {@code true} is returned, the
      * initialization is delayed and the {@link JitsiMeetActivity#initialize()} method is not
      * called. In this case, it's up to the subclass to call the initialize method when ready.
-     *
+     * <p>
      * This is mainly required so we do some extra initialization in the Jitsi Meet app.
      *
      * @return {@code true} if the initialization will be delayed, {@code false} otherwise.
@@ -298,16 +310,20 @@ public class JitsiMeetActivity extends FragmentActivity
         JitsiMeetActivityDelegate.onActivityResult(this, requestCode, resultCode, data);
     }
 
-   @Override
-   public void onBackPressed() {
+    @Override
+    public void onBackPressed() {
 //        JitsiMeetActivityDelegate.onBackPressed();
-       launchCallingActivity();
-   }
+        launchCallingActivity();
+    }
 
     private void launchCallingActivity() {
         Intent intent = new Intent(JitsiMeetActivity.this, getCurrentCallingContext().getClass());
         intent.addFlags(LAUNCH_FLAG_APP);
         startActivity(intent);
+    }
+
+    public static ExternalCommunicationInterface getExternalCommunicationInterface() {
+        return externalCommunicationInterface;
     }
 
     @Override
@@ -327,7 +343,7 @@ public class JitsiMeetActivity extends FragmentActivity
     @Override
     protected void onUserLeaveHint() {
         //@cobrowsing log onUserLeaveHint
-        JitsiMeetLogger.d(TAG+" cobrowsing-onUserLeaveHint: PIP event ");
+        JitsiMeetLogger.d(TAG + " cobrowsing-onUserLeaveHint: PIP event ");
 //         getJitsiView().enterPictureInPicture();
     }
 
@@ -368,7 +384,7 @@ public class JitsiMeetActivity extends FragmentActivity
         thisActivity = null;
 //        isHidden = true;
 
-            launchCallingActivity();
+        launchCallingActivity();
 
         this.finish();
     }
@@ -376,5 +392,16 @@ public class JitsiMeetActivity extends FragmentActivity
     @Override
     public void onConferenceWillJoin(Map<String, Object> data) {
         JitsiMeetLogger.i("Conference will join: " + data);
+    }
+
+    @Override
+    public void leaveOngoingConference() {
+        //@cobrowsing log leaveOngoingConference
+        JitsiMeetLogger.d(TAG + " cobrowsing-leaveOngoingConference: ");
+        try{
+            leave();
+        }catch(Exception e){
+            e.printStackTrace();
+        }
     }
 }

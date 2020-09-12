@@ -67,7 +67,7 @@ class NavigationBar extends Component<Props> {
                 style = { styles.navBarWrapper }>
                 <PictureInPictureButton
                     styles = { styles.navBarButton } />
-                <View
+                {/* <View
                     pointerEvents = 'box-none'
                     style = { styles.roomNameWrapper }>
                     {
@@ -81,7 +81,7 @@ class NavigationBar extends Component<Props> {
                     {
                         this.props._conferenceTimerEnabled && <ConferenceTimer />
                     }
-                </View>
+                </View> */}
             </View>
         ];
     }
@@ -97,7 +97,7 @@ class NavigationBar extends Component<Props> {
 function _mapStateToProps(state) {
     return {
         _conferenceTimerEnabled: getFeatureFlag(state, CONFERENCE_TIMER_ENABLED, true),
-        _meetingName: " ",
+        _meetingName: "Co-Browsing session",
         _meetingNameEnabled: getFeatureFlag(state, MEETING_NAME_ENABLED, true),
         _visible: isToolboxVisible(state)
     };
