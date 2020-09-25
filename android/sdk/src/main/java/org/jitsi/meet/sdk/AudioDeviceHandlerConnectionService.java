@@ -58,11 +58,15 @@ class AudioDeviceHandlerConnectionService implements
      * no match is found.
      */
     private static int audioDeviceToRouteInt(String audioDevice) {
+
         if (audioDevice == null) {
+            JitsiMeetLogger.e(TAG + " Not audiodevice: ");
             return CallAudioState.ROUTE_SPEAKER;
         }
+
         switch (audioDevice) {
             case AudioModeModule.DEVICE_BLUETOOTH:
+                JitsiMeetLogger.e(TAG + " bluetooth: ");
                 return CallAudioState.ROUTE_BLUETOOTH;
             case AudioModeModule.DEVICE_EARPIECE:
                 return CallAudioState.ROUTE_EARPIECE;

@@ -301,6 +301,7 @@ function _conferenceWillJoin({ dispatch, getState }, next, action) {
                         { text: 'OK' }
                     ],
                     { cancelable: false });
+
             } else {
                 // Some devices fail because the CALL_PHONE permission is not granted, which is
                 // nonsense, because it's not needed for self-managed connections.
@@ -309,6 +310,7 @@ function _conferenceWillJoin({ dispatch, getState }, next, action) {
 
                 _handleConnectionServiceFailure(state);
             }
+
         });
 
     return result;
