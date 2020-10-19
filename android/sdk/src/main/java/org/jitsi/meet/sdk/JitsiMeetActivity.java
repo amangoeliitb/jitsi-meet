@@ -108,6 +108,7 @@ public class JitsiMeetActivity extends FragmentActivity
         //@cobrowsing log launchCurrentJitsiCall
         JitsiMeetLogger.d(TAG + " cobrowsing-launchCurrentJitsiCall: context " + context);
         try {
+            setCurrentCallingContext(context);
             Intent intent = new Intent(context, JitsiMeetActivity.class);
             if (LAUNCH_FLAG != -1)
                 intent.setFlags(LAUNCH_FLAG);
@@ -313,7 +314,9 @@ public class JitsiMeetActivity extends FragmentActivity
     @Override
     public void onBackPressed() {
 //        JitsiMeetActivityDelegate.onBackPressed();
-        launchCallingActivity();
+//        launchCallingActivity();
+        Intent intent = new Intent(JitsiMeetActivity.this, getCurrentCallingContext().getClass());
+        startActivity(intent);
     }
 
     private void launchCallingActivity() {
