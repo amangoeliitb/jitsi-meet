@@ -262,7 +262,11 @@ public class JitsiMeetActivity extends FragmentActivity
     }
 
     public void leave() {
-        getJitsiView().leave();
+        try{
+            getJitsiView().leave();
+        }catch(Exception e){
+            e.printStackTrace();
+        }
     }
 
     private @Nullable
