@@ -103,7 +103,7 @@ export default {
     navBarButton: {
         iconStyle: {
             color: ColorPalette.white,
-            fontSize: 58
+            fontSize: 120
         },
 
         underlayColor: 'transparent'
